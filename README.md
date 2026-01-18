@@ -20,6 +20,22 @@ You can start editing the page by modifying `app/page.js`. The page auto-updates
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Downloader Service (Render)
+
+The UI expects a hosted downloader service that runs `yt-dlp` and streams the file back to the browser.
+
+1. Create a new Render Web Service.
+2. Set the Root Directory to `server`.
+3. Build command: `npm install`
+4. Start command: `npm start`
+5. Environment variables:
+   - `CORS_ORIGIN` = your Vercel domain (comma-separated if multiple)
+   - `YTDLP_PATH` (optional) to override the bundled binary
+
+The `server/scripts/download-ytdlp.js` script downloads the latest `yt-dlp` binary during install.
+
+In Vercel, set `NEXT_PUBLIC_DOWNLOAD_API_BASE` to the Render service URL.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

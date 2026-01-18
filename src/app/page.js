@@ -10,15 +10,17 @@ const statusStyles = {
 };
 
 export default function Home() {
+  const apiBase = (process.env.NEXT_PUBLIC_DOWNLOAD_API_BASE || "").trim();
+  const normalizedApiBase = apiBase.replace(/\/$/, "");
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState({
     state: "idle",
-    message: "Paste a YouTube link and hit download.",
+    message: "Paste a YouTube link and start a download.",
   });
   const [result, setResult] = useState(null);
   const [versionState, setVersionState] = useState({
     state: "idle",
-    message: "Check yt-dlp is reachable.",
+    message: "Check the downloader service.",
     version: "",
   });
 
@@ -39,38 +41,57 @@ export default function Home() {
       return;
     }
 
-    setStatus({ state: "loading", message: "Downloading with yt-dlp..." });
-
-    try {
-      const response = await fetch("/api/download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: trimmedUrl }),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        setStatus({
-          state: "error",
-          message: data?.error || "Download failed. Check the server logs.",
-        });
-        return;
-      }
-
-      setStatus({ state: "success", message: "Download complete." });
-      setResult(data);
-    } catch (error) {
+    if (!normalizedApiBase) {
       setStatus({
         state: "error",
-        message: error?.message || "Something went wrong.",
+        message:
+          "Set NEXT_PUBLIC_DOWNLOAD_API_BASE to your Render service URL.",
       });
+      return;
     }
+
+    setStatus({ state: "loading", message: "Starting your download..." });
+
+    const downloadUrl = `${normalizedApiBase}/download?url=${encodeURIComponent(
+      trimmedUrl
+    )}`;
+    setResult({ downloadUrl });
+
+    const downloadWindow = window.open(
+      downloadUrl,
+      "_blank",
+      "noopener,noreferrer"
+    );
+    if (!downloadWindow) {
+      window.location.assign(downloadUrl);
+    }
+
+    setStatus({
+      state: "success",
+      message: "Download started. Check your browser downloads.",
+    });
   };
 
   const handleCheckVersion = async () => {
-    setVersionState({ state: "loading", message: "Checking yt-dlp...", version: "" });
+    if (!normalizedApiBase) {
+      setVersionState({
+        state: "error",
+        message:
+          "Set NEXT_PUBLIC_DOWNLOAD_API_BASE to your Render service URL.",
+        version: "",
+      });
+      return;
+    }
+
+    setVersionState({
+      state: "loading",
+      message: "Checking downloader service...",
+      version: "",
+    });
     try {
-      const response = await fetch("/api/version", { method: "GET" });
+      const response = await fetch(`${normalizedApiBase}/version`, {
+        method: "GET",
+      });
       const data = await response.json();
 
       if (!response.ok) {
@@ -84,7 +105,7 @@ export default function Home() {
 
       setVersionState({
         state: "success",
-        message: "yt-dlp is available.",
+        message: "Downloader is available.",
         version: data?.version || "",
       });
     } catch (error) {
@@ -104,16 +125,15 @@ export default function Home() {
       <main className="relative mx-auto flex min-h-screen max-w-6xl flex-col gap-12 px-6 py-16 lg:px-10 lg:py-20">
         <header className="flex flex-col gap-6">
           <span className="text-xs font-semibold uppercase tracking-[0.32em] text-[color:var(--foreground-muted)]">
-            Local Only - Powered by yt-dlp
+            Powered by yt-dlp
           </span>
           <div className="flex flex-col gap-4">
             <h1 className="text-4xl leading-tight sm:text-5xl lg:text-6xl">
               Download YouTube videos straight to your desktop.
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-[color:var(--foreground-muted)]">
-              This runs entirely on your machine. The browser calls a local API
-              route, which launches yt-dlp and saves files to a dedicated
-              downloads folder.
+              This UI calls a hosted downloader service that runs yt-dlp and
+              streams the file back to your browser so it saves locally.
             </p>
           </div>
         </header>
@@ -149,7 +169,7 @@ export default function Home() {
                 <span className="text-xs text-[color:var(--foreground-muted)]">
                   Downloads to{" "}
                   <span className="rounded-md bg-white/70 px-2 py-1 font-mono text-[11px] text-[color:var(--foreground)]">
-                    downloads/
+                    your browser&apos;s default folder
                   </span>
                 </span>
               </div>
@@ -160,17 +180,21 @@ export default function Home() {
                 <div className="flex flex-col gap-3">
                   <div>
                     <span className="font-semibold text-[color:var(--foreground)]">
-                      Saved to:
+                      Download link:
                     </span>{" "}
-                    <span className="inline-block max-w-full break-all text-[color:var(--foreground-muted)]">
-                      {result.outputDir}
-                    </span>
+                    <a
+                      className="inline-block max-w-full break-all text-[color:var(--accent-deep)] underline"
+                      href={result.downloadUrl}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      {result.downloadUrl}
+                    </a>
                   </div>
-                  {result.log ? (
-                    <pre className="max-h-40 max-w-full overflow-auto whitespace-pre-wrap break-words rounded-xl bg-white/80 p-4 text-xs leading-5 text-[color:var(--foreground)]">
-                      {result.log}
-                    </pre>
-                  ) : null}
+                  <p className="text-xs text-[color:var(--foreground-muted)]">
+                    If the download did not start, open the link or allow
+                    popups for this site.
+                  </p>
                 </div>
               </div>
             ) : null}
@@ -180,27 +204,22 @@ export default function Home() {
             <div>
               <h2 className="text-2xl">Before you hit download</h2>
               <p className="mt-3 text-sm leading-6 text-[color:var(--foreground-muted)]">
-                Make sure{" "}
+                Point{" "}
                 <span className="rounded-md bg-white/70 px-2 py-1 font-mono text-[11px] text-[color:var(--foreground)]">
-                  yt-dlp
+                  NEXT_PUBLIC_DOWNLOAD_API_BASE
                 </span>{" "}
-                is on your PATH. If not, set{" "}
-                <span className="rounded-md bg-white/70 px-2 py-1 font-mono text-[11px] text-[color:var(--foreground)]">
-                  YTDLP_PATH
-                </span>{" "}
-                in{" "}
+                to your Render service URL in{" "}
                 <span className="rounded-md bg-white/70 px-2 py-1 font-mono text-[11px] text-[color:var(--foreground)]">
                   .env.local
                 </span>
-                . This UI talks to the local binary, so nothing is uploaded
-                anywhere.
+                . The downloader service must have yt-dlp installed or bundled.
               </p>
             </div>
             <div className="rounded-2xl border border-[color:var(--ring)] bg-white/60 p-4 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold text-[color:var(--foreground)]">
-                    Verify yt-dlp
+                    Verify downloader
                   </p>
                   <p className={`mt-1 ${statusStyles[versionState.state]}`}>
                     {versionState.message}
@@ -220,7 +239,9 @@ export default function Home() {
                   disabled={versionState.state === "loading"}
                   className="rounded-full border border-[color:var(--ring)] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--foreground)] transition hover:border-transparent hover:bg-[color:var(--accent)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {versionState.state === "loading" ? "Checking" : "Test yt-dlp"}
+                  {versionState.state === "loading"
+                    ? "Checking"
+                    : "Test downloader"}
                 </button>
               </div>
             </div>
@@ -230,7 +251,7 @@ export default function Home() {
               </p>
               <p className="mt-2 text-[color:var(--foreground-muted)]">
                 <span className="rounded-md bg-white/80 px-2 py-1 font-mono text-[11px] text-[color:var(--foreground)]">
-                  {"C:\\Users\\kyle-\\OneDrive\\Desktop\\ytdl\\downloads"}
+                  your browser&apos;s downloads folder
                 </span>
               </p>
             </div>

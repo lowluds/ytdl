@@ -13,8 +13,8 @@ const dmSerifDisplay = DM_Serif_Display({
 });
 
 export const metadata = {
-  title: "LocalTube DL",
-  description: "A local Next.js UI for downloading YouTube videos with yt-dlp.",
+  title: "YTDL Stream",
+  description: "Download YouTube videos via a hosted yt-dlp downloader.",
 };
 
 export default function RootLayout({ children }) {

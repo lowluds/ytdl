@@ -24,6 +24,7 @@
 .DS_Store
 *.pem
 downloads/
+server/bin/
 
 # debug
 npm-debug.log*
