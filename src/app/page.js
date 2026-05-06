@@ -263,6 +263,16 @@ export default function Home() {
             </div>
           </aside>
         </section>
+
+        <footer className="text-center text-xs text-[color:var(--foreground-muted)]">
+          Designed by{" "}
+          <a
+            href="https://northbridge.studio/"
+            className="underline underline-offset-4"
+          >
+            Northbridge Studio
+          </a>
+        </footer>
       </main>
     </div>
   );
